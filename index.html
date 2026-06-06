@@ -7,7 +7,7 @@
   <!-- JSZip for zip export/import -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    /* all styles unchanged – same as previous version */
+    /* all styles unchanged */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -128,7 +128,8 @@
       margin-bottom: 8px;
     }
     .modal .row label { font-size: .85rem; white-space: nowrap; }
-    .modal .row input[type="date"] { flex: 1; }
+    /* Date text input – no native picker */
+    .modal .row input[type="text"] { flex: 1; }
     .modal .row input[type="checkbox"] { width: auto; }
     .modal .btn-row {
       display: flex;
@@ -356,7 +357,7 @@
     <button class="btn-clear" id="clearBtn">Clear</button>
   </div>
 
-  <!-- Edit Modal -->
+  <!-- Edit Modal – date field is now text input -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3>Edit Rule</h3>
@@ -364,7 +365,8 @@
       <input id="editAction" placeholder="THEN action" />
       <div class="row">
         <label for="editDate" style="flex-shrink:0;">Date</label>
-        <input type="date" id="editDate" />
+        <input type="text" id="editDate" placeholder="YYYY-MM-DD (or empty for today)"
+               pattern="\d{4}-\d{2}-\d{2}" title="Date must be in YYYY-MM-DD format" />
       </div>
       <div class="row">
         <input type="checkbox" id="editStop" style="width:auto;" />
@@ -552,7 +554,7 @@
 • Run checks all ON rules in order.
 • If a rule has "Stop" enabled, no later rules fire.
 • Use arrows to reorder rules (order matters for Stop).
-• GPC mode shows dates in the Global Perennial Calendar.
+• GPC mode shows dates in the Gregorian‑Pataphysical Calendar.
 • Export saves your data as a .zip file with rules.json inside. Import restores it.`
       );
       toggleMenu(false);
@@ -619,18 +621,26 @@
       document.getElementById('editStop').checked = r.stop || false;
       document.getElementById('editModal').classList.add('show');
     }
+
     document.getElementById('saveEditBtn').addEventListener('click', () => {
       if (editingIdx === null) return;
       const label = document.getElementById('editLabel').value.trim();
       const action = document.getElementById('editAction').value.trim();
-      const date = document.getElementById('editDate').value;
+      const rawDate = document.getElementById('editDate').value.trim();
+      // Validate date format – must be YYYY-MM-DD or empty
+      let date = rawDate;
+      if (rawDate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        alert('Date must be in YYYY-MM-DD format (or leave empty).');
+        return;
+      }
       const stop = document.getElementById('editStop').checked;
       if (!label || !action) return;
-      rules[editingIdx] = { ...rules[editingIdx], label, action, date: date || '', stop };
+      rules[editingIdx] = { ...rules[editingIdx], label, action, date, stop };
       save();
       renderRules();
       closeEdit();
     });
+
     document.getElementById('cancelEditBtn').addEventListener('click', closeEdit);
     function closeEdit() { document.getElementById('editModal').classList.remove('show'); editingIdx = null; }
 
@@ -640,6 +650,11 @@
       const action = prompt('THEN action:');
       if (!action) return;
       const date = prompt('Date (YYYY-MM-DD) or empty for today:', '');
+      // Allow empty or YYYY-MM-DD only
+      if (date !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        alert('Invalid date format. Rule not added.');
+        return;
+      }
       rules.push({ id: 'r' + Date.now(), label, action, date: date || '', on: false, stop: false });
       save();
       renderRules();
