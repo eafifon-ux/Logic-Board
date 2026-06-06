@@ -127,6 +127,21 @@
     .modal .row label { font-size: .85rem; white-space: nowrap; }
     .modal .row input[type="text"] { flex: 1; margin-bottom: 0; }
     .modal .row input[type="checkbox"] { width: auto; margin-bottom: 0; }
+    .modal textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: #1e2532;
+      border: 1px solid #2c3548;
+      border-radius: 8px;
+      color: #eaeef2;
+      font-size: .9rem;
+      margin-bottom: 8px;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+    .modal textarea:focus { border-color: #6c8cff; }
     .modal .btn-row {
       display: flex;
       gap: 8px;
@@ -313,7 +328,7 @@
 
   <div style="padding-left: 50px;">
     <h1>⚡ IF → THEN</h1>
-    <div class="sub">Toggle ON. Stop works by list order. URL optional – auto‑fixes https & www.</div>
+    <div class="sub">Toggle ON. Stop works by list order. Now with notes.</div>
   </div>
 
   <div class="card">
@@ -343,7 +358,7 @@
     <button class="btn-clear" id="clearBtn">Clear</button>
   </div>
 
-  <!-- Edit Modal – date is now text + calendar button -->
+  <!-- Edit Modal – date picker with working native clear (no extra X button) -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3>Edit Rule</h3>
@@ -363,16 +378,17 @@
           font-size: 1rem;
         ">📅</button>
       </div>
-      <!-- Hidden native date input used by the button -->
       <input type="date" id="editDatePickerHidden" style="display:none;" />
       <div class="row">
         <label for="editUrl" style="flex-shrink:0;">Link (optional)</label>
-        <input type="text" id="editUrl" placeholder="Link (optional)" />
+        <input type="text" id="editUrl" placeholder="google.com" />
       </div>
       <div class="row">
         <input type="checkbox" id="editStop" style="width:auto;" />
         <label for="editStop">Stop further rules if this fires</label>
       </div>
+      <label for="editNotes" style="font-size:.85rem; display:block; margin-bottom:4px;">Notes (optional)</label>
+      <textarea id="editNotes" placeholder="Any notes or reminders..." rows="3"></textarea>
       <div class="btn-row">
         <button class="btn-save" id="saveEditBtn">Save</button>
         <button class="btn-cancel" id="cancelEditBtn">Cancel</button>
@@ -386,34 +402,29 @@
     const editDatePickerHidden = document.getElementById('editDatePickerHidden');
     const editDatePickerBtn = document.getElementById('editDatePickerBtn');
 
+    // Open native picker
     editDatePickerBtn.addEventListener('click', () => {
-      // Set hidden input's value to current text (if valid) or today
       const current = editDateInput.value.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(current)) {
-        editDatePickerHidden.value = current;
-      } else {
-        // Set to today
-        const today = new Date().toISOString().slice(0, 10);
-        editDatePickerHidden.value = today;
-      }
-      // Trigger native picker
+      // If current text is a valid date, use it as starting point; otherwise start empty
+      editDatePickerHidden.value = /^\d{4}-\d{2}-\d{2}$/.test(current) ? current : '';
       editDatePickerHidden.showPicker();
     });
 
-    // When a date is selected in the hidden picker, copy to text field
+    // When the picker is changed (select a date or clear via browser's clear button)
     editDatePickerHidden.addEventListener('change', () => {
-      if (editDatePickerHidden.value) {
-        editDateInput.value = editDatePickerHidden.value; // always YYYY-MM-DD
-      }
+      editDateInput.value = editDatePickerHidden.value || '';
+    });
+
+    // Additional listener for immediate sync (some browsers)
+    editDatePickerHidden.addEventListener('input', () => {
+      editDateInput.value = editDatePickerHidden.value || '';
     });
 
     // ─── URL NORMALISATION ───────────────────────────────────────────────────
     function ensureAbsoluteUrl(url) {
       if (!url) return '';
       let normalized = url.trim();
-      if (!/^https?:\/\//i.test(normalized)) {
-        normalized = 'https://' + normalized;
-      }
+      if (!/^https?:\/\//i.test(normalized)) normalized = 'https://' + normalized;
       try {
         const parsed = new URL(normalized);
         const hostParts = parsed.hostname.split('.');
@@ -498,10 +509,10 @@
 
     if (!rules.length) {
       rules = [
-        { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false, url: '' },
-        { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true, url: '' },
-        { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false, url: '' },
-        { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false, url: '' }
+        { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false, url: '', notes: '' },
+        { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true, url: '', notes: '' },
+        { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false, url: '', notes: '' },
+        { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false, url: '', notes: '' }
       ];
       save();
     }
@@ -584,7 +595,8 @@
 • Use arrows to reorder rules (order matters for Stop).
 • GPC mode shows dates in the Gregorian‑Pataphysical Calendar.
 • URL is optional – if you enter something, it's auto‑fixed (https & www added as needed).
-• Date must be in YYYY-MM-DD format. Use 📅 to pick from calendar.
+• Date must be in YYYY-MM-DD format. Use 📅 to pick from calendar. Native picker's clear button works.
+• Notes are optional – visible when editing a rule.
 • Export saves your data as a .zip file. Import restores it.`
       );
       toggleMenu(false);
@@ -600,12 +612,13 @@
         const dateDisplay = r.date ? `📅 ${r.date}` : '📅 auto today';
         const stopBadge = r.stop ? '<span class="stop-badge">⛔ stop</span>' : '';
         const linkIndicator = r.url ? '🔗' : '';
+        const notesIndicator = r.notes ? '📝' : '';
         div.innerHTML = `
           <div class="toggle ${r.on ? 'on' : ''}" data-idx="${idx}">
             <div class="knob"></div>
           </div>
           <div class="rule-main">
-            <div class="rule-label">${r.label} ${stopBadge} ${linkIndicator}</div>
+            <div class="rule-label">${r.label} ${stopBadge} ${linkIndicator} ${notesIndicator}</div>
             <div class="rule-action">→ ${r.action}</div>
             <div class="rule-meta"><span>${dateDisplay}</span></div>
           </div>
@@ -650,6 +663,7 @@
       document.getElementById('editDate').value = r.date || '';
       document.getElementById('editUrl').value = r.url || '';
       document.getElementById('editStop').checked = r.stop || false;
+      document.getElementById('editNotes').value = r.notes || '';
       document.getElementById('editModal').classList.add('show');
     }
 
@@ -664,9 +678,10 @@
         return;
       }
       const stop = document.getElementById('editStop').checked;
+      const notes = document.getElementById('editNotes').value.trim();
       if (!label || !action) return;
       const url = rawUrl ? ensureAbsoluteUrl(rawUrl) : '';
-      rules[editingIdx] = { ...rules[editingIdx], label, action, date: rawDate, url, stop };
+      rules[editingIdx] = { ...rules[editingIdx], label, action, date: rawDate, url, stop, notes };
       save();
       renderRules();
       closeEdit();
@@ -680,14 +695,16 @@
       if (!label) return;
       const action = prompt('THEN action:');
       if (!action) return;
-      const date = prompt('Date (YYYY-MM-DD) or empty for today:', '');
-      if (date !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        alert('Invalid date format. Rule not added.');
-        return;
-      }
-      const rawUrl = prompt('Link (optional):', '');
-      const url = rawUrl ? ensureAbsoluteUrl(rawUrl) : '';
-      rules.push({ id: 'r' + Date.now(), label, action, date: date || '', url, on: false, stop: false });
+      rules.push({
+        id: 'r' + Date.now(),
+        label,
+        action,
+        date: '',
+        url: '',
+        on: false,
+        stop: false,
+        notes: ''
+      });
       save();
       renderRules();
     });
