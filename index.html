@@ -7,7 +7,6 @@
   <!-- JSZip for zip export/import -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    /* all styles unchanged */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -68,7 +67,6 @@
     .rule-actions .delete-btn { color: #f87171; }
     .rule-actions .move-btn { color: #7a8499; }
     .rule-actions .move-btn:disabled { opacity: .3; cursor: default; }
-
     .toggle {
       width: 36px; height: 20px;
       background: #283040;
@@ -89,7 +87,6 @@
       transition: transform .2s;
     }
     .toggle.on .knob { transform: translateX(16px); }
-
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -128,9 +125,8 @@
       margin-bottom: 8px;
     }
     .modal .row label { font-size: .85rem; white-space: nowrap; }
-    /* Date text input – no native picker */
-    .modal .row input[type="text"] { flex: 1; }
-    .modal .row input[type="checkbox"] { width: auto; }
+    .modal .row input[type="text"] { flex: 1; margin-bottom: 0; }
+    .modal .row input[type="checkbox"] { width: auto; margin-bottom: 0; }
     .modal .btn-row {
       display: flex;
       gap: 8px;
@@ -146,7 +142,6 @@
     }
     .modal .btn-save { background: #6c8cff; color: white; }
     .modal .btn-cancel { background: #1e2532; color: #eaeef2; border: 1px solid #2c3548; }
-
     .btn-run {
       background: #6c8cff;
       color: white;
@@ -169,11 +164,7 @@
       font-size: .9rem;
       flex: 0 0 auto;
     }
-    .fab-bar {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
+    .fab-bar { display: flex; gap: 8px; margin-top: 12px; }
     .timeline-header {
       display: flex;
       justify-content: space-between;
@@ -194,10 +185,7 @@
     }
     .timeline-header .sort-btn.active,
     .timeline-header .gpc-btn.active { color: #6c8cff; border-color: #6c8cff; }
-    .timeline {
-      max-height: 240px;
-      overflow-y: auto;
-    }
+    .timeline { max-height: 240px; overflow-y: auto; }
     .timeline-item {
       display: flex;
       align-items: flex-start;
@@ -213,6 +201,8 @@
       line-height: 1;
     }
     .timeline-item .msg { flex: 1; }
+    .timeline-item .msg a { color: #6c8cff; text-decoration: underline; }
+    .timeline-item .msg a:hover { color: #a78bfa; }
     .timeline-item .date { color: #a78bfa; font-size: .75rem; }
     .add-btn {
       background: #1e2532;
@@ -230,8 +220,6 @@
       align-items: center;
       margin-bottom: 8px;
     }
-
-    /* Hamburger menu */
     .hamburger {
       position: fixed;
       top: 16px;
@@ -274,7 +262,6 @@
     .menu-open .hamburger span { background: transparent; }
     .menu-open .hamburger span::before { transform: rotate(45deg); top: 0; }
     .menu-open .hamburger span::after { transform: rotate(-45deg); top: 0; }
-
     .side-menu {
       position: fixed;
       top: 0;
@@ -302,7 +289,6 @@
       text-align: left;
     }
     .side-menu button:hover { background: #283040; }
-
     .menu-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -327,7 +313,7 @@
 
   <div style="padding-left: 50px;">
     <h1>⚡ IF → THEN</h1>
-    <div class="sub">Toggle ON. Stop works by list order. Timeline with day dots in GPC.</div>
+    <div class="sub">Toggle ON. Stop works by list order. URL optional – auto‑fixes https & www.</div>
   </div>
 
   <div class="card">
@@ -357,16 +343,31 @@
     <button class="btn-clear" id="clearBtn">Clear</button>
   </div>
 
-  <!-- Edit Modal – date field is now text input -->
+  <!-- Edit Modal – date is now text + calendar button -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3>Edit Rule</h3>
       <input id="editLabel" placeholder="IF condition" />
       <input id="editAction" placeholder="THEN action" />
       <div class="row">
-        <label for="editDate" style="flex-shrink:0;">Date</label>
-        <input type="text" id="editDate" placeholder="YYYY-MM-DD (or empty for today)"
-               pattern="\d{4}-\d{2}-\d{2}" title="Date must be in YYYY-MM-DD format" />
+        <label for="editDate" style="white-space:nowrap;">Date</label>
+        <input type="text" id="editDate" placeholder="YYYY-MM-DD"
+               pattern="\d{4}-\d{2}-\d{2}" title="Use YYYY-MM-DD format" />
+        <button id="editDatePickerBtn" type="button" style="
+          background: #1e2532;
+          border: 1px solid #2c3548;
+          border-radius: 8px;
+          padding: 10px;
+          cursor: pointer;
+          line-height: 1;
+          font-size: 1rem;
+        ">📅</button>
+      </div>
+      <!-- Hidden native date input used by the button -->
+      <input type="date" id="editDatePickerHidden" style="display:none;" />
+      <div class="row">
+        <label for="editUrl" style="flex-shrink:0;">Link (optional)</label>
+        <input type="text" id="editUrl" placeholder="Link (optional)" />
       </div>
       <div class="row">
         <input type="checkbox" id="editStop" style="width:auto;" />
@@ -380,6 +381,50 @@
   </div>
 
   <script>
+    // ─── DATE PICKER HELPER ──────────────────────────────────────────────────
+    const editDateInput = document.getElementById('editDate');
+    const editDatePickerHidden = document.getElementById('editDatePickerHidden');
+    const editDatePickerBtn = document.getElementById('editDatePickerBtn');
+
+    editDatePickerBtn.addEventListener('click', () => {
+      // Set hidden input's value to current text (if valid) or today
+      const current = editDateInput.value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(current)) {
+        editDatePickerHidden.value = current;
+      } else {
+        // Set to today
+        const today = new Date().toISOString().slice(0, 10);
+        editDatePickerHidden.value = today;
+      }
+      // Trigger native picker
+      editDatePickerHidden.showPicker();
+    });
+
+    // When a date is selected in the hidden picker, copy to text field
+    editDatePickerHidden.addEventListener('change', () => {
+      if (editDatePickerHidden.value) {
+        editDateInput.value = editDatePickerHidden.value; // always YYYY-MM-DD
+      }
+    });
+
+    // ─── URL NORMALISATION ───────────────────────────────────────────────────
+    function ensureAbsoluteUrl(url) {
+      if (!url) return '';
+      let normalized = url.trim();
+      if (!/^https?:\/\//i.test(normalized)) {
+        normalized = 'https://' + normalized;
+      }
+      try {
+        const parsed = new URL(normalized);
+        const hostParts = parsed.hostname.split('.');
+        if (hostParts.length === 2 && hostParts[0] !== 'www') {
+          parsed.hostname = 'www.' + parsed.hostname;
+          normalized = parsed.toString();
+        }
+      } catch (e) {}
+      return normalized;
+    }
+
     // ─── GPC CALENDAR ────────────────────────────────────────────────────────
     const GPC = {
       epochUTC: Date.UTC(1982,2,24),
@@ -387,14 +432,11 @@
       weekEmojis: ['🟠','🟤','🌺','🌏','🟢','🔵','🟣'],
       suitCodes: [0x2663, 0x2666, 0x2665, 0x2660],
       heptads: Object.create(null),
-
       initHeptads() {
-        const starts = [
-          1,8,15,22,31,38,45,52,61,68,75,82,89,
+        const starts = [1,8,15,22,31,38,45,52,61,68,75,82,89,
           92,99,106,113,122,129,136,143,152,159,166,173,180,
           183,190,197,204,213,220,227,234,243,250,257,264,271,
-          274,281,288,295,304,311,318,325,334,341,348,355,362
-        ];
+          274,281,288,295,304,311,318,325,334,341,348,355,362];
         let i = 0;
         for (let s=0; s<4; s++) {
           for (let w=1; w<=13; w++) {
@@ -402,18 +444,14 @@
             const len = long ? 9 : 7;
             for (let d=0; d<len; d++) {
               const doy = starts[i] + d;
-              if (doy<=364) {
-                this.heptads[doy] = { suit: this.suitCodes[s], week: w };
-              }
+              if (doy<=364) this.heptads[doy] = { suit: this.suitCodes[s], week: w };
             }
             i++;
           }
         }
       },
-
       daysFromGregorian(d) { return Math.floor((d.getTime() - this.epochUTC)/86400000); },
       gregorianFromDays(days) { return new Date(this.epochUTC + days*86400000); },
-
       gpcFromDays(days) {
         const mod = (a,b)=>((a%b)+b)%b;
         const leapWeeks = (r)=>{
@@ -423,8 +461,7 @@
           if(mod(r+29,70)===0) l+=7;
           return l;
         };
-        const cycleYears = 490;
-        const cycleDays = 178969;
+        const cycleYears = 490, cycleDays = 178969;
         let y = this.epochYear;
         if(days >= cycleDays || days <= -cycleDays){
           const cycles = Math.trunc(days / cycleDays);
@@ -449,10 +486,7 @@
         }
         return {year:y, doy:days+1};
       },
-
-      formatGPC(doy, year) {
-        return `${year}.${String(doy).padStart(3,"0")}`;
-      }
+      formatGPC(doy, year) { return `${year}.${String(doy).padStart(3,"0")}`; }
     };
     GPC.initHeptads();
 
@@ -464,10 +498,10 @@
 
     if (!rules.length) {
       rules = [
-        { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false },
-        { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true },
-        { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false },
-        { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false }
+        { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false, url: '' },
+        { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true, url: '' },
+        { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false, url: '' },
+        { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false, url: '' }
       ];
       save();
     }
@@ -483,16 +517,14 @@
     const hamburger = document.getElementById('hamburger');
     const menuOverlay = document.getElementById('menuOverlay');
     const body = document.body;
-
     function toggleMenu(open) {
       if (open === undefined) open = !body.classList.contains('menu-open');
       body.classList.toggle('menu-open', open);
     }
-
     hamburger.addEventListener('click', () => toggleMenu());
     menuOverlay.addEventListener('click', () => toggleMenu(false));
 
-    // ─── EXPORT (ZIP) ───────────────────────────────────────────────────────
+    // ─── EXPORT / IMPORT / CLEAR / HELP ─────────────────────────────────────
     document.getElementById('exportBtn').addEventListener('click', async () => {
       const zip = new JSZip();
       const data = { rules, timeline, sortDirection, gpcMode };
@@ -507,7 +539,6 @@
       toggleMenu(false);
     });
 
-    // ─── IMPORT (ZIP) ───────────────────────────────────────────────────────
     document.getElementById('importBtn').addEventListener('click', () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -528,14 +559,11 @@
           renderTimeline();
           toggleMenu(false);
           alert('Import successful!');
-        } catch {
-          alert('Invalid .zip file (must contain rules.json).');
-        }
+        } catch { alert('Invalid .zip file (must contain rules.json).'); }
       };
       input.click();
     });
 
-    // ─── CLEAR & HELP ───────────────────────────────────────────────────────
     document.getElementById('clearDataBtn').addEventListener('click', () => {
       if (confirm('Delete all rules, timeline, and reset to defaults?')) {
         localStorage.removeItem('simpleIfThen');
@@ -552,10 +580,12 @@
 
 • Toggle a rule ON to make it active.
 • Run checks all ON rules in order.
-• If a rule has "Stop" enabled, no later rules fire.
+• Stop stops further rules from firing.
 • Use arrows to reorder rules (order matters for Stop).
-• GPC mode shows dates in the Global Perennial Calendar.
-• Export saves your data as a .zip file with rules.json inside. Import restores it.`
+• GPC mode shows dates in the Gregorian‑Pataphysical Calendar.
+• URL is optional – if you enter something, it's auto‑fixed (https & www added as needed).
+• Date must be in YYYY-MM-DD format. Use 📅 to pick from calendar.
+• Export saves your data as a .zip file. Import restores it.`
       );
       toggleMenu(false);
     });
@@ -569,12 +599,13 @@
         div.className = 'rule-row';
         const dateDisplay = r.date ? `📅 ${r.date}` : '📅 auto today';
         const stopBadge = r.stop ? '<span class="stop-badge">⛔ stop</span>' : '';
+        const linkIndicator = r.url ? '🔗' : '';
         div.innerHTML = `
           <div class="toggle ${r.on ? 'on' : ''}" data-idx="${idx}">
             <div class="knob"></div>
           </div>
           <div class="rule-main">
-            <div class="rule-label">${r.label} ${stopBadge}</div>
+            <div class="rule-label">${r.label} ${stopBadge} ${linkIndicator}</div>
             <div class="rule-action">→ ${r.action}</div>
             <div class="rule-meta"><span>${dateDisplay}</span></div>
           </div>
@@ -586,7 +617,6 @@
           </div>
         `;
         container.appendChild(div);
-
         div.querySelector('.toggle').addEventListener('click', () => {
           rules[idx].on = !rules[idx].on;
           save();
@@ -618,6 +648,7 @@
       document.getElementById('editLabel').value = r.label;
       document.getElementById('editAction').value = r.action;
       document.getElementById('editDate').value = r.date || '';
+      document.getElementById('editUrl').value = r.url || '';
       document.getElementById('editStop').checked = r.stop || false;
       document.getElementById('editModal').classList.add('show');
     }
@@ -627,15 +658,15 @@
       const label = document.getElementById('editLabel').value.trim();
       const action = document.getElementById('editAction').value.trim();
       const rawDate = document.getElementById('editDate').value.trim();
-      // Validate date format – must be YYYY-MM-DD or empty
-      let date = rawDate;
+      const rawUrl = document.getElementById('editUrl').value.trim();
       if (rawDate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
         alert('Date must be in YYYY-MM-DD format (or leave empty).');
         return;
       }
       const stop = document.getElementById('editStop').checked;
       if (!label || !action) return;
-      rules[editingIdx] = { ...rules[editingIdx], label, action, date, stop };
+      const url = rawUrl ? ensureAbsoluteUrl(rawUrl) : '';
+      rules[editingIdx] = { ...rules[editingIdx], label, action, date: rawDate, url, stop };
       save();
       renderRules();
       closeEdit();
@@ -650,12 +681,13 @@
       const action = prompt('THEN action:');
       if (!action) return;
       const date = prompt('Date (YYYY-MM-DD) or empty for today:', '');
-      // Allow empty or YYYY-MM-DD only
       if (date !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         alert('Invalid date format. Rule not added.');
         return;
       }
-      rules.push({ id: 'r' + Date.now(), label, action, date: date || '', on: false, stop: false });
+      const rawUrl = prompt('Link (optional):', '');
+      const url = rawUrl ? ensureAbsoluteUrl(rawUrl) : '';
+      rules.push({ id: 'r' + Date.now(), label, action, date: date || '', url, on: false, stop: false });
       save();
       renderRules();
     });
@@ -672,11 +704,11 @@
         if (!r.on) continue;
         if (stopped) break;
         const displayDate = r.date || todayStr;
-        timeline.push({ time: timeStr, action: r.action, date: displayDate });
-        if (r.stop) { stopped = true; }
+        timeline.push({ time: timeStr, action: r.action, date: displayDate, url: r.url || '' });
+        if (r.stop) stopped = true;
       }
       if (!timeline.length) {
-        timeline.push({ time: timeStr, action: 'No rules triggered (toggle some ON)', date: todayStr });
+        timeline.push({ time: timeStr, action: 'No rules triggered (toggle some ON)', date: todayStr, url: '' });
       }
       save();
       renderTimeline();
@@ -689,18 +721,15 @@
         container.innerHTML = '<div style="color:#7a8499;text-align:center;padding:20px 0;">No events yet</div>';
         return;
       }
-
       const sorted = [...timeline].sort((a, b) => {
         const cmp = a.date.localeCompare(b.date);
         return sortDirection === 'asc' ? cmp : -cmp;
       });
-
       container.innerHTML = '';
       sorted.forEach(e => {
         const item = document.createElement('div');
         item.className = 'timeline-item';
         let dotEmoji, dateLabel;
-
         if (gpcMode) {
           const dt = new Date(e.date + 'T00:00:00Z');
           if (!isNaN(dt)) {
@@ -716,60 +745,34 @@
           dotEmoji = '';
           dateLabel = ` ${e.date}`;
         }
-
-        if (gpcMode) {
-          item.innerHTML = `
-            <span class="dot">${dotEmoji}</span>
-            <span class="msg">${e.action}</span>
-            <span class="date">${dateLabel}</span>
-          `;
-        } else {
-          item.innerHTML = `
-            <span class="dot" style="background:#4ade80; width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px;"></span>
-            <span class="msg">${e.action}</span>
-            <span class="date">${dateLabel}</span>
-          `;
-        }
+        const actionHtml = e.url ? `<a href="${e.url}" target="_blank" rel="noopener noreferrer">${e.action}</a>` : e.action;
+        item.innerHTML = gpcMode ? `
+          <span class="dot">${dotEmoji}</span>
+          <span class="msg">${actionHtml}</span>
+          <span class="date">${dateLabel}</span>
+        ` : `
+          <span class="dot" style="background:#4ade80; width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px;"></span>
+          <span class="msg">${actionHtml}</span>
+          <span class="date">${dateLabel}</span>
+        `;
         container.appendChild(item);
       });
-
-      document.querySelectorAll('.sort-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.dir === sortDirection);
-      });
+      document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.dir === sortDirection));
       document.getElementById('gpcBtn').classList.toggle('active', gpcMode);
     }
 
-    // ─── EVENT LISTENERS ─────────────────────────────────────────────────────
-    document.getElementById('sortAscBtn').addEventListener('click', () => {
-      sortDirection = 'asc';
-      save();
-      renderTimeline();
-    });
-    document.getElementById('sortDescBtn').addEventListener('click', () => {
-      sortDirection = 'desc';
-      save();
-      renderTimeline();
-    });
-    document.getElementById('gpcBtn').addEventListener('click', () => {
-      gpcMode = !gpcMode;
-      save();
-      renderTimeline();
-    });
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      timeline = [];
-      save();
-      renderTimeline();
-    });
+    document.getElementById('sortAscBtn').addEventListener('click', () => { sortDirection = 'asc'; save(); renderTimeline(); });
+    document.getElementById('sortDescBtn').addEventListener('click', () => { sortDirection = 'desc'; save(); renderTimeline(); });
+    document.getElementById('gpcBtn').addEventListener('click', () => { gpcMode = !gpcMode; save(); renderTimeline(); });
+    document.getElementById('clearBtn').addEventListener('click', () => { timeline = []; save(); renderTimeline(); });
     document.getElementById('runBtn').addEventListener('click', run);
 
-    // ─── INIT ────────────────────────────────────────────────────────────────
     renderRules();
     renderTimeline();
-
     if (!timeline.length) {
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      timeline.push({ time: timeStr, action: '🚀 Ready – toggle rules ON and press Run', date: now.toISOString().slice(0, 10) });
+      timeline.push({ time: timeStr, action: '🚀 Ready – toggle rules ON and press Run', date: now.toISOString().slice(0, 10), url: '' });
       save();
       renderTimeline();
     }
