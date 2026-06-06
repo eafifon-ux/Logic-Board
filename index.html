@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IF-THEN – Gregorian / GPC Timeline with Day Dots</title>
   <style>
-    /* same styles as before – only the relevant JS changed */
+    /* same styles as before – only the default rules changed */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -364,14 +364,14 @@
     let gpcMode = localStorage.getItem('gpcMode') === 'true';
 
     if (!rules.length) {
-      rules = [
-        { id: 'r1', label: 'Job Monday', action: 'Buy EUC 🛴', date: '2025-06-17', on: true, stop: true },
-        { id: 'r2', label: 'No job for a week', action: 'Move to Dubai ✈️', date: '2025-06-20', on: false, stop: false },
-        { id: 'r3', label: 'Serbia offer', action: 'Move to Serbia 🇷🇸', date: '2025-07-01', on: false, stop: false },
-        { id: 'r4', label: 'Today is Monday', action: 'Plan the week 📋', date: '', on: false, stop: false }
-      ];
-      save();
-    }
+  rules = [
+    { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false },
+    { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true },
+    { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false },
+    { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false }
+  ];
+  save();
+}
 
     function save() {
       localStorage.setItem('simpleIfThen', JSON.stringify(rules));
