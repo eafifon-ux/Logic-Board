@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IF-THEN – Gregorian / GPC Timeline with Day Dots</title>
+  <title>IF-THEN – Gregorian / GPC Timeline</title>
+  <!-- JSZip for zip export/import -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    /* same styles as before – only the default rules changed */
+    /* all styles unchanged – same as previous version */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -14,6 +16,8 @@
       padding: 20px;
       max-width: 500px;
       margin: 0 auto;
+      position: relative;
+      min-height: 100vh;
     }
     h1 { font-size: 1.5rem; margin-bottom: 4px; }
     .sub { color: #7a8499; font-size: .85rem; margin-bottom: 20px; }
@@ -202,7 +206,7 @@
       font-size: .85rem;
     }
     .timeline-item .dot {
-      font-size: 1rem;   /* larger emoji dot */
+      font-size: 1rem;
       flex-shrink: 0;
       margin-top: 2px;
       line-height: 1;
@@ -225,12 +229,105 @@
       align-items: center;
       margin-bottom: 8px;
     }
+
+    /* Hamburger menu */
+    .hamburger {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: #1e2532;
+      border: 1px solid #2c3548;
+      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 200;
+      transition: left .3s;
+    }
+    .hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: #eaeef2;
+      border-radius: 2px;
+      position: relative;
+      transition: .3s;
+    }
+    .hamburger span::before,
+    .hamburger span::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #eaeef2;
+      border-radius: 2px;
+      transition: .3s;
+    }
+    .hamburger span::before { top: -6px; }
+    .hamburger span::after { top: 6px; }
+    .menu-open .hamburger { left: 280px; }
+    .menu-open .hamburger span { background: transparent; }
+    .menu-open .hamburger span::before { transform: rotate(45deg); top: 0; }
+    .menu-open .hamburger span::after { transform: rotate(-45deg); top: 0; }
+
+    .side-menu {
+      position: fixed;
+      top: 0;
+      left: -260px;
+      width: 260px;
+      height: 100vh;
+      background: #161a22;
+      border-right: 1px solid #2c3548;
+      padding: 80px 20px 20px;
+      transition: left .3s;
+      z-index: 150;
+    }
+    .menu-open .side-menu { left: 0; }
+    .side-menu button {
+      display: block;
+      width: 100%;
+      background: #1e2532;
+      border: 1px solid #2c3548;
+      color: #eaeef2;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: .9rem;
+      text-align: left;
+    }
+    .side-menu button:hover { background: #283040; }
+
+    .menu-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,.5);
+      display: none;
+      z-index: 140;
+    }
+    .menu-open .menu-overlay { display: block; }
   </style>
 </head>
 <body>
 
-  <h1>⚡ IF → THEN</h1>
-  <div class="sub">Toggle ON. Stop works by list order. Timeline with day dots in GPC.</div>
+  <!-- Hamburger + Side Menu -->
+  <div class="hamburger" id="hamburger"><span></span></div>
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <div class="side-menu" id="sideMenu">
+    <button id="exportBtn">📤 Export .zip</button>
+    <button id="importBtn">📥 Import .zip</button>
+    <button id="clearDataBtn">🗑 Clear all data</button>
+    <button id="helpBtn">❓ Help</button>
+  </div>
+
+  <div style="padding-left: 50px;">
+    <h1>⚡ IF → THEN</h1>
+    <div class="sub">Toggle ON. Stop works by list order. Timeline with day dots in GPC.</div>
+  </div>
 
   <div class="card">
     <div class="header-bar">
@@ -263,8 +360,8 @@
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3>Edit Rule</h3>
-      <input id="editLabel" placeholder="IF condition (e.g. Job Monday)" />
-      <input id="editAction" placeholder="THEN action (e.g. Buy EUC 🛴)" />
+      <input id="editLabel" placeholder="IF condition" />
+      <input id="editAction" placeholder="THEN action" />
       <div class="row">
         <label for="editDate" style="flex-shrink:0;">Date</label>
         <input type="date" id="editDate" />
@@ -364,14 +461,14 @@
     let gpcMode = localStorage.getItem('gpcMode') === 'true';
 
     if (!rules.length) {
-  rules = [
-    { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false },
-    { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true },
-    { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false },
-    { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false }
-  ];
-  save();
-}
+      rules = [
+        { id: 'r1', label: 'Today is Monday', action: 'Plan the week 📅', date: '', on: false, stop: false },
+        { id: 'r2', label: 'Retirement age', action: 'Collect pension & relax 🏖️', date: '2025-08-01', on: false, stop: true },
+        { id: 'r3', label: 'Job offer from FAANG', action: 'Negotiate & accept 💼', date: '2025-07-15', on: false, stop: false },
+        { id: 'r4', label: 'Divorce final', action: 'Close that chapter 📄', date: '2025-09-10', on: false, stop: false }
+      ];
+      save();
+    }
 
     function save() {
       localStorage.setItem('simpleIfThen', JSON.stringify(rules));
@@ -379,6 +476,87 @@
       localStorage.setItem('timelineSort', sortDirection);
       localStorage.setItem('gpcMode', gpcMode);
     }
+
+    // ─── HAMBURGER MENU ─────────────────────────────────────────────────────
+    const hamburger = document.getElementById('hamburger');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const body = document.body;
+
+    function toggleMenu(open) {
+      if (open === undefined) open = !body.classList.contains('menu-open');
+      body.classList.toggle('menu-open', open);
+    }
+
+    hamburger.addEventListener('click', () => toggleMenu());
+    menuOverlay.addEventListener('click', () => toggleMenu(false));
+
+    // ─── EXPORT (ZIP) ───────────────────────────────────────────────────────
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+      const zip = new JSZip();
+      const data = { rules, timeline, sortDirection, gpcMode };
+      zip.file('rules.json', JSON.stringify(data, null, 2));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `logicboard_backup_${new Date().toISOString().slice(0,10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toggleMenu(false);
+    });
+
+    // ─── IMPORT (ZIP) ───────────────────────────────────────────────────────
+    document.getElementById('importBtn').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.zip';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const zip = await JSZip.loadAsync(file);
+          const content = await zip.file('rules.json').async('string');
+          const data = JSON.parse(content);
+          if (data.rules) rules = data.rules;
+          if (data.timeline) timeline = data.timeline;
+          if (data.sortDirection) sortDirection = data.sortDirection;
+          if (data.gpcMode !== undefined) gpcMode = data.gpcMode;
+          save();
+          renderRules();
+          renderTimeline();
+          toggleMenu(false);
+          alert('Import successful!');
+        } catch {
+          alert('Invalid .zip file (must contain rules.json).');
+        }
+      };
+      input.click();
+    });
+
+    // ─── CLEAR & HELP ───────────────────────────────────────────────────────
+    document.getElementById('clearDataBtn').addEventListener('click', () => {
+      if (confirm('Delete all rules, timeline, and reset to defaults?')) {
+        localStorage.removeItem('simpleIfThen');
+        localStorage.removeItem('simpleTimeline');
+        localStorage.removeItem('timelineSort');
+        localStorage.removeItem('gpcMode');
+        location.reload();
+      }
+    });
+
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      alert(
+`⚡ IF → THEN
+
+• Toggle a rule ON to make it active.
+• Run checks all ON rules in order.
+• If a rule has "Stop" enabled, no later rules fire.
+• Use arrows to reorder rules (order matters for Stop).
+• GPC mode shows dates in the Gregorian‑Pataphysical Calendar.
+• Export saves your data as a .zip file with rules.json inside. Import restores it.`
+      );
+      toggleMenu(false);
+    });
 
     // ─── RENDER RULES ────────────────────────────────────────────────────────
     function renderRules() {
@@ -520,7 +698,7 @@
             dateLabel = 'invalid date';
           }
         } else {
-          dotEmoji = '';   // use CSS dot
+          dotEmoji = '';
           dateLabel = ` ${e.date}`;
         }
 
@@ -531,7 +709,6 @@
             <span class="date">${dateLabel}</span>
           `;
         } else {
-          // Gregorian: use the original green dot with calendar emoji
           item.innerHTML = `
             <span class="dot" style="background:#4ade80; width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px;"></span>
             <span class="msg">${e.action}</span>
