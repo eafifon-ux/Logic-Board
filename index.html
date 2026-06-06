@@ -501,7 +501,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `logicboard_backup_${new Date().toISOString().slice(0,10)}.zip`;
+      a.download = `LogicBoard-${new Date().toISOString().slice(0,10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       toggleMenu(false);
