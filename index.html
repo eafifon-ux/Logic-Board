@@ -312,6 +312,24 @@
       z-index: 140;
     }
     .menu-open .menu-overlay { display: block; }
+    /* Copied toast */
+    .toast-copied {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4ade80;
+      color: #0c0e14;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: .85rem;
+      font-weight: 600;
+      z-index: 300;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast-copied.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -358,7 +376,7 @@
     <button class="btn-clear" id="clearBtn">Clear</button>
   </div>
 
-  <!-- Edit Modal – date picker with working native clear (no extra X button) -->
+  <!-- Edit Modal -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3>Edit Rule</h3>
@@ -387,7 +405,19 @@
         <input type="checkbox" id="editStop" style="width:auto;" />
         <label for="editStop">Stop further rules if this fires</label>
       </div>
-      <label for="editNotes" style="font-size:.85rem; display:block; margin-bottom:4px;">Notes (optional)</label>
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+  <label for="editNotes" style="font-size:.85rem;">Notes</label>
+  <button id="copyNotesBtn" type="button" style="
+    margin-left: auto;   /* pushes button to the right */
+    background: #1e2532;
+    border: 1px solid #2c3548;
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: .8rem;
+    line-height: 1;
+  ">📋</button>
+</div>
       <textarea id="editNotes" placeholder="Any notes or reminders..." rows="3"></textarea>
       <div class="btn-row">
         <button class="btn-save" id="saveEditBtn">Save</button>
@@ -396,26 +426,25 @@
     </div>
   </div>
 
+  <!-- Copied toast -->
+  <div class="toast-copied" id="copiedToast">Copied!</div>
+
   <script>
     // ─── DATE PICKER HELPER ──────────────────────────────────────────────────
     const editDateInput = document.getElementById('editDate');
     const editDatePickerHidden = document.getElementById('editDatePickerHidden');
     const editDatePickerBtn = document.getElementById('editDatePickerBtn');
 
-    // Open native picker
     editDatePickerBtn.addEventListener('click', () => {
       const current = editDateInput.value.trim();
-      // If current text is a valid date, use it as starting point; otherwise start empty
       editDatePickerHidden.value = /^\d{4}-\d{2}-\d{2}$/.test(current) ? current : '';
       editDatePickerHidden.showPicker();
     });
 
-    // When the picker is changed (select a date or clear via browser's clear button)
     editDatePickerHidden.addEventListener('change', () => {
       editDateInput.value = editDatePickerHidden.value || '';
     });
 
-    // Additional listener for immediate sync (some browsers)
     editDatePickerHidden.addEventListener('input', () => {
       editDateInput.value = editDatePickerHidden.value || '';
     });
@@ -596,10 +625,31 @@
 • GPC mode shows dates in the Gregorian‑Pataphysical Calendar.
 • URL is optional – if you enter something, it's auto‑fixed (https & www added as needed).
 • Date must be in YYYY-MM-DD format. Use 📅 to pick from calendar. Native picker's clear button works.
-• Notes are optional – visible when editing a rule.
+• Notes are visible when editing a rule — use 📋 to copy them.
 • Export saves your data as a .zip file. Import restores it.`
       );
       toggleMenu(false);
+    });
+
+    // ─── NOTES COPY ─────────────────────────────────────────────────────────
+    const copiedToast = document.getElementById('copiedToast');
+    let toastTimer = null;
+    function showCopiedToast() {
+      copiedToast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => copiedToast.classList.remove('show'), 1500);
+    }
+
+    document.getElementById('copyNotesBtn').addEventListener('click', () => {
+      const text = document.getElementById('editNotes').value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(showCopiedToast).catch(() => {
+        // fallback
+        const ta = document.getElementById('editNotes');
+        ta.select();
+        document.execCommand('copy');
+        showCopiedToast();
+      });
     });
 
     // ─── RENDER RULES ────────────────────────────────────────────────────────
